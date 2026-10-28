@@ -23,3 +23,6 @@ mongodb:
 resources:
   web: {}
   api: {}
+# Name of a manually created Secret containing optional SMTP_* and INQUIRY_NOTIFY_TO keys.
+# Do not commit SMTP credentials in Helm values.
+notificationSecretName: ""

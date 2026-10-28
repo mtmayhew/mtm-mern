@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
+import Admin from "./Admin.jsx";
 const services = [
   [
     "3D Printing & Design",
@@ -201,4 +202,10 @@ function App() {
     </>
   );
 }
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(
+  window.location.pathname.replace(/\/$/, "") === "/admin" ? (
+    <Admin />
+  ) : (
+    <App />
+  ),
+);

@@ -26,6 +26,11 @@ spec:
                 secretKeyRef:
                   name: {{ if .Values.mongodb.existingUriSecret }}{{ .Values.mongodb.existingUriSecret }}{{ else }}mtm-mongodb-uri{{ end }}
                   key: {{ .Values.mongodb.existingUriKey }}
+          {{- if .Values.notificationSecretName }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.notificationSecretName | quote }}
+          {{- end }}
           readinessProbe:
             httpGet: {path: /api/ready, port: 3000}
             initialDelaySeconds: 5

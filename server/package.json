@@ -5,13 +5,16 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
     "express": "^5.0.0",
     "mongoose": "^8.0.0",
     "helmet": "^8.0.0",
     "express-rate-limit": "^8.0.0",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "bcryptjs": "^2.4.3",
+    "nodemailer": "^7.0.0"
   }
 }
