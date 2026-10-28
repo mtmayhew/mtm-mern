@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/REPLACE_WITH_GITHUB_OWNER/REPLACE_WITH_REPO.git
+    repoURL: https://github.com/mtmayhew/mtm-mern.git
     targetRevision: main
     path: helm/mtm-mern
     helm:

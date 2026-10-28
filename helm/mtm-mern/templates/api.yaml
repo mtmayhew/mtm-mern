@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mtm-api
+  name: api
 spec:
   replicas: {{ .Values.api.replicas }}
   selector:
