@@ -19,6 +19,39 @@ const statuses = [
 const label = (s) => statuses.find(([key]) => key === s)?.[1] || s;
 const fmt = (d) => new Date(d).toLocaleString();
 const galleryCategories = ["3D Printing", "Software", "Web Design", "Other"];
+const originalGalleryFiles = [
+  "20260606_092804.jpg",
+  "dragon.jpeg",
+  "IMG_20260606_105357.jpg",
+  "IMG_20260606_105417.jpg",
+  "IMG_20260606_105419.jpg",
+  "SaturnVCube.jpg",
+  "Scorpio_Charm.webp",
+  "Toad_Totem_Backflow_Burne.webp",
+];
+async function resizeOriginal(blob) {
+  if (blob.size <= 5 * 1024 * 1024) return blob;
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const canvas = document.createElement("canvas");
+    const scale = Math.min(1, 2200 / Math.max(bitmap.width, bitmap.height));
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas
+      .getContext("2d")
+      .drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.85, 0.7, 0.55, 0.4]) {
+      const converted = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/webp", quality),
+      );
+      if (converted && converted.size <= 5 * 1024 * 1024) return converted;
+    }
+    throw Error("Image is too large after resizing.");
+  } finally {
+    bitmap.close();
+  }
+}
+
 function GalleryManager() {
   const [items, setItems] = useState([]),
     [title, setTitle] = useState(""),
@@ -35,6 +68,73 @@ function GalleryManager() {
   useEffect(() => {
     load().catch((e) => setError(e.message));
   }, []);
+  async function importOriginals() {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    let imported = 0,
+      skipped = 0;
+    const failures = [];
+    try {
+      const existing = await request("/api/admin/gallery");
+      const names = new Set(
+        existing.items.map((x) => x.legacyName).filter(Boolean),
+      );
+      for (const filename of originalGalleryFiles) {
+        if (names.has(filename)) {
+          skipped++;
+          continue;
+        }
+        try {
+          const response = await fetch(
+            "/gallery/" + encodeURIComponent(filename),
+            { credentials: "same-origin" },
+          );
+          if (!response.ok)
+            throw Error(
+              "Original photo unavailable (HTTP " + response.status + ")",
+            );
+          const blob = await resizeOriginal(await response.blob());
+          const name = filename.replace(/\.[^.]+$/, "").replaceAll("_", " ");
+          const form = new FormData();
+          form.append(
+            "image",
+            new File([blob], filename.replace(/\.[^.]+$/, ".webp"), {
+              type: blob.type,
+            }),
+          );
+          form.append("title", name);
+          form.append("description", "");
+          form.append("category", "3D Printing");
+          form.append("legacyName", filename);
+          const upload = await fetch("/api/admin/gallery", {
+            method: "POST",
+            body: form,
+            credentials: "same-origin",
+          });
+          const result = await upload.json().catch(() => ({}));
+          if (upload.status === 409) {
+            skipped++;
+            continue;
+          }
+          if (!upload.ok) throw Error(result.error || "Upload failed");
+          imported++;
+        } catch (e) {
+          failures.push(filename + ": " + e.message);
+        }
+      }
+      await load();
+      setNotice(
+        `${imported} original photo(s) imported. ${skipped} already imported.`,
+      );
+      if (failures.length)
+        setError("Some photos could not be imported: " + failures.join("; "));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function create(e) {
     e.preventDefault();
     setError("");
@@ -103,6 +203,20 @@ function GalleryManager() {
         Upload photos and manage the public gallery. Photos are stored in
         MongoDB, not inside a container.
       </p>
+      <div className="gallery-import">
+        <p>
+          Original photos from the website can be imported into MongoDB once,
+          making them editable and removable below.
+        </p>
+        <button
+          type="button"
+          className="admin-secondary"
+          onClick={importOriginals}
+          disabled={busy}
+        >
+          {busy ? "Importing…" : "Import original photos"}
+        </button>
+      </div>
       <form className="gallery-upload admin-form" onSubmit={create}>
         <label>
           Project title
@@ -170,8 +284,8 @@ function GalleryManager() {
       </div>
       {!items.length && (
         <p>
-          No new projects yet. Existing bundled gallery photos still appear on
-          the public site.
+          No editable photos yet. Use Import original photos above to manage the
+          original gallery.
         </p>
       )}
     </section>

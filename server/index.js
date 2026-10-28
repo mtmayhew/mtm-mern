@@ -53,12 +53,13 @@ const GalleryItem = mongoose.model(
     sortOrder: { type: Number, default: 0, index: true },
     gridFileId: { type: mongoose.Schema.Types.ObjectId, required: true },
     mimeType: { type: String, required: true },
+    legacyName: { type: String, unique: true, sparse: true },
     createdAt: { type: Date, default: Date.now },
   }),
 );
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 5 },
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 6 },
   fileFilter: (_req, file, cb) =>
     cb(
       null,
@@ -95,6 +96,7 @@ function galleryDTO(item) {
     visible: item.visible,
     sortOrder: item.sortOrder,
     createdAt: item.createdAt,
+    legacyName: item.legacyName || null,
   };
 }
 function gridBucket() {
@@ -234,15 +236,24 @@ app.get("/api/gallery", async (_req, res, next) => {
     const items = await GalleryItem.find({ visible: true })
       .sort({ sortOrder: 1, createdAt: -1 })
       .lean();
+    const imported = new Set(
+      (
+        await GalleryItem.find({ legacyName: { $exists: true } })
+          .select("legacyName")
+          .lean()
+      ).map((item) => item.legacyName),
+    );
     res.json([
       ...items.map(galleryDTO),
-      ...galleryFiles.map((name) => ({
-        url: "/gallery/" + encodeURIComponent(name),
-        caption: name.replace(/\.[^.]+$/, "").replaceAll("_", " "),
-        title: name.replace(/\.[^.]+$/, "").replaceAll("_", " "),
-        category: "Archive",
-        legacy: true,
-      })),
+      ...galleryFiles
+        .filter((name) => !imported.has(name))
+        .map((name) => ({
+          url: "/gallery/" + encodeURIComponent(name),
+          caption: name.replace(/\.[^.]+$/, "").replaceAll("_", " "),
+          title: name.replace(/\.[^.]+$/, "").replaceAll("_", " "),
+          category: "Archive",
+          legacy: true,
+        })),
     ]);
   } catch (e) {
     next(e);
@@ -429,6 +440,13 @@ app.post(
       const title = String(req.body.title || "").trim(),
         description = String(req.body.description || "").trim();
       const category = String(req.body.category || "3D Printing");
+      const legacyName = String(req.body.legacyName || "");
+      if (legacyName && !galleryFiles.includes(legacyName))
+        return res.status(400).json({ error: "Invalid original photo." });
+      if (legacyName && (await GalleryItem.exists({ legacyName })))
+        return res
+          .status(409)
+          .json({ error: "This original photo has already been imported." });
       if (
         !title ||
         title.length > 100 ||
@@ -455,6 +473,7 @@ app.post(
           mimeType: mime,
           visible: true,
           sortOrder: Date.now(),
+          ...(legacyName ? { legacyName } : {}),
         });
       } catch (e) {
         await bucket.delete(stream.id).catch(() => {});
