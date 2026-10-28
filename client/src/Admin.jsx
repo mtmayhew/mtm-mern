@@ -23,9 +23,7 @@ const originalGalleryFiles = [
   "20260606_092804.jpg",
   "dragon.jpeg",
   "IMG_20260606_105357.jpg",
-  "IMG_20260606_105417.jpg",
   "IMG_20260606_105419.jpg",
-  "SaturnVCube.jpg",
   "Scorpio_Charm.webp",
   "Toad_Totem_Backflow_Burne.webp",
 ];
