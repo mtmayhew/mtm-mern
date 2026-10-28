@@ -1,0 +1,51 @@
+{{- if .Values.mongodb.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mtm-mongodb-uri
+type: Opaque
+stringData:
+  MONGODB_URI: mongodb://mtm-mongodb:27017/mtm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mtm-mongodb
+spec:
+  selector: {app: mtm-mongodb}
+  ports: [{port: 27017, targetPort: 27017}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mtm-mongodb
+spec:
+  serviceName: mtm-mongodb
+  replicas: 1
+  selector:
+    matchLabels: {app: mtm-mongodb}
+  template:
+    metadata:
+      labels: {app: mtm-mongodb}
+    spec:
+      containers:
+        - name: mongodb
+          image: {{ .Values.mongodb.image }}
+          ports: [{containerPort: 27017}]
+          volumeMounts: [{name: db-data, mountPath: /data/db}]
+          readinessProbe:
+            tcpSocket: {port: 27017}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: db-data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if .Values.mongodb.storageClassName }}
+        storageClassName: {{ .Values.mongodb.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.mongodb.storageSize }}
+{{- end }}

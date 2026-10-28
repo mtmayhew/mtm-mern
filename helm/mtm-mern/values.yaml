@@ -1,0 +1,24 @@
+image:
+  repository: ghcr.io/REPLACE_WITH_GITHUB_OWNER/mtm-web
+  tag: "latest"
+  pullPolicy: Always
+apiImage:
+  repository: ghcr.io/REPLACE_WITH_GITHUB_OWNER/mtm-api
+  tag: "latest"
+  pullPolicy: Always
+imagePullSecrets: []
+web:
+  replicas: 2
+  nodePort: 30080
+api:
+  replicas: 1
+mongodb:
+  enabled: true
+  image: mongo:7
+  storageSize: 5Gi
+  storageClassName: ""
+  existingUriSecret: ""
+  existingUriKey: MONGODB_URI
+resources:
+  web: {}
+  api: {}

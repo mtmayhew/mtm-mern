@@ -1,0 +1,57 @@
+name: Build and publish MERN images
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'helm/mtm-mern/values.yaml'
+      - '**/*.md'
+  workflow_dispatch:
+permissions:
+  contents: write
+  packages: write
+concurrency:
+  group: mtm-build-main
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push web
+        uses: docker/build-push-action@v6
+        with:
+          context: ./client
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/mtm-web:${{ github.sha }}
+      - name: Build and push API
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/mtm-api:${{ github.sha }}
+      - name: Update Helm image versions after successful builds
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re
+          p=pathlib.Path('helm/mtm-mern/values.yaml')
+          s=p.read_text()
+          owner=os.environ['OWNER'].lower()
+          sha=os.environ['SHA']
+          s=re.sub(r'(?m)^  repository: ghcr.io/.*/mtm-web$',f'  repository: ghcr.io/{owner}/mtm-web',s)
+          s=re.sub(r'(?m)^  repository: ghcr.io/.*/mtm-api$',f'  repository: ghcr.io/{owner}/mtm-api',s)
+          s=re.sub(r'(?m)^  tag: ".*"$',f'  tag: "{sha}"',s)
+          p.write_text(s)
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add helm/mtm-mern/values.yaml
+          git diff --cached --quiet || (git commit -m "ci: deploy images ${SHA}" && git push)
