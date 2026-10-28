@@ -76,7 +76,7 @@ function App() {
     <>
       <section className="hero">
         <div className="hero-content">
-          <h1>MTM Enterprises</h1>
+          <h1>MTM Enterprisews</h1>
           <p className="tagline">
             Custom 3D Printing, Software Development, Web Solutions & Digital
             Design
