@@ -6,7 +6,8 @@ apiImage:
   repository: ghcr.io/mtmayhew/mtm-api
   tag: "c5d44ac9bc7852cbc36f8f462465785c55d387bb"
   pullPolicy: Always
-imagePullSecrets: []
+imagePullSecrets: 
+  - name: ghcr-secret
 web:
   replicas: 2
   nodePort: 30080
