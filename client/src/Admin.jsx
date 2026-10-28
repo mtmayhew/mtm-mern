@@ -18,6 +18,224 @@ const statuses = [
 ];
 const label = (s) => statuses.find(([key]) => key === s)?.[1] || s;
 const fmt = (d) => new Date(d).toLocaleString();
+const galleryCategories = ["3D Printing", "Software", "Web Design", "Other"];
+function GalleryManager() {
+  const [items, setItems] = useState([]),
+    [title, setTitle] = useState(""),
+    [description, setDescription] = useState(""),
+    [category, setCategory] = useState("3D Printing"),
+    [image, setImage] = useState(null),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState("");
+  async function load() {
+    const data = await request("/api/admin/gallery");
+    setItems(data.items);
+  }
+  useEffect(() => {
+    load().catch((e) => setError(e.message));
+  }, []);
+  async function create(e) {
+    e.preventDefault();
+    setError("");
+    setNotice("");
+    if (!image) {
+      setError("Choose an image first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const body = new FormData();
+      body.append("image", image);
+      body.append("title", title);
+      body.append("description", description);
+      body.append("category", category);
+      const response = await fetch("/api/admin/gallery", {
+        method: "POST",
+        body,
+        credentials: "same-origin",
+      });
+      const data = await response.json();
+      if (!response.ok) throw Error(data.error || "Upload failed");
+      setTitle("");
+      setDescription("");
+      setImage(null);
+      e.currentTarget.reset();
+      await load();
+      setNotice("Project added to your public gallery.");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function edit(item, changes) {
+    setError("");
+    try {
+      await request("/api/admin/gallery/" + item.id, {
+        method: "PATCH",
+        body: JSON.stringify(changes),
+      });
+      await load();
+      setNotice("Gallery updated.");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+  async function remove(item) {
+    if (
+      !window.confirm('Permanently delete "' + item.title + '" and its photo?')
+    )
+      return;
+    setError("");
+    try {
+      await request("/api/admin/gallery/" + item.id, { method: "DELETE" });
+      await load();
+      setNotice("Project deleted.");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+  return (
+    <section className="gallery-admin">
+      <h2>Project gallery</h2>
+      <p>
+        Upload photos and manage the public gallery. Photos are stored in
+        MongoDB, not inside a container.
+      </p>
+      <form className="gallery-upload admin-form" onSubmit={create}>
+        <label>
+          Project title
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength="100"
+            required
+            placeholder="Custom dragon sculpture"
+          />
+        </label>
+        <label>
+          Category
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            {galleryCategories.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Description
+          <textarea
+            rows="3"
+            maxLength="600"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Materials, inspiration or project details"
+          />
+        </label>
+        <label>
+          Photo (JPG, PNG, WebP or GIF, max 5 MB)
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            required
+            onChange={(e) => setImage(e.target.files?.[0] || null)}
+          />
+        </label>
+        <button className="btn" disabled={busy}>
+          {busy ? "Uploading…" : "Add project"}
+        </button>
+      </form>
+      {error && (
+        <p className="admin-error" role="alert">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="admin-success" role="status">
+          {notice}
+        </p>
+      )}
+      <div className="gallery-admin-grid">
+        {items.map((item) => (
+          <GalleryEditor
+            key={item.id}
+            item={item}
+            edit={edit}
+            remove={remove}
+          />
+        ))}
+      </div>
+      {!items.length && (
+        <p>
+          No new projects yet. Existing bundled gallery photos still appear on
+          the public site.
+        </p>
+      )}
+    </section>
+  );
+}
+function GalleryEditor({ item, edit, remove }) {
+  const [title, setTitle] = useState(item.title),
+    [description, setDescription] = useState(item.description || ""),
+    [category, setCategory] = useState(item.category);
+  return (
+    <article className="gallery-admin-card">
+      <img src={item.url} alt={item.title} loading="lazy" />
+      <div className="gallery-admin-fields">
+        <label>
+          Title
+          <input
+            value={title}
+            maxLength="100"
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+        <label>
+          Description
+          <textarea
+            rows="2"
+            value={description}
+            maxLength="600"
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+        <label>
+          Category
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            {galleryCategories.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+        <label className="gallery-checkbox">
+          <input
+            type="checkbox"
+            checked={item.visible}
+            onChange={(e) => edit(item, { visible: e.target.checked })}
+          />{" "}
+          Visible on site
+        </label>
+        <div className="gallery-actions">
+          <button
+            onClick={() => edit(item, { title, description, category })}
+            className="admin-secondary"
+          >
+            Save
+          </button>
+          <button onClick={() => remove(item)} className="admin-danger">
+            Delete
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
 export default function Admin() {
   const [user, setUser] = useState(null),
     [checking, setChecking] = useState(true),
@@ -33,6 +251,7 @@ export default function Admin() {
   const [selected, setSelected] = useState(null),
     [notes, setNotes] = useState(""),
     [status, setStatus] = useState("new");
+  const [tab, setTab] = useState("inquiries");
   const [working, setWorking] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState("");
@@ -166,7 +385,7 @@ export default function Admin() {
         <header className="admin-header">
           <div>
             <a href="/">← Public website</a>
-            <h1>Inquiry dashboard</h1>
+            <h1>MTM Admin</h1>
             <p>
               {total} matching inquiries · Signed in as {user.username}
             </p>
@@ -175,144 +394,166 @@ export default function Admin() {
             Sign out
           </button>
         </header>
-        <form
-          className="admin-toolbar"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setPage(1);
-            setSearchTerm(search);
-          }}
-        >
-          <label>
-            Search
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Name, email, or message"
-            />
-          </label>
-          <label>
-            Status
-            <select
-              value={filter}
-              onChange={(e) => {
-                setFilter(e.target.value);
+        <div className="admin-tabs">
+          <button
+            className={tab === "inquiries" ? "active" : ""}
+            onClick={() => setTab("inquiries")}
+          >
+            Inquiries
+          </button>
+          <button
+            className={tab === "gallery" ? "active" : ""}
+            onClick={() => setTab("gallery")}
+          >
+            Project gallery
+          </button>
+        </div>
+        {tab === "gallery" ? (
+          <GalleryManager />
+        ) : (
+          <>
+            <form
+              className="admin-toolbar"
+              onSubmit={(e) => {
+                e.preventDefault();
                 setPage(1);
+                setSearchTerm(search);
               }}
             >
-              <option value="">All statuses</option>
-              {statuses.map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button className="btn">Search</button>
-        </form>
-        {error && (
-          <p role="alert" className="admin-error">
-            {error}
-          </p>
-        )}
-        <div className="admin-grid">
-          <div className="admin-list">
-            {!items.length ? (
-              <p className="admin-empty">No inquiries found.</p>
-            ) : (
-              items.map((item) => (
-                <button
-                  key={item._id}
-                  className={
-                    "inquiry-row " +
-                    (selected?._id === item._id ? "active" : "")
-                  }
-                  onClick={() => open(item)}
+              <label>
+                Search
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Name, email, or message"
+                />
+              </label>
+              <label>
+                Status
+                <select
+                  value={filter}
+                  onChange={(e) => {
+                    setFilter(e.target.value);
+                    setPage(1);
+                  }}
                 >
-                  <span className="inquiry-row-top">
-                    <strong>{item.name}</strong>
-                    <span
-                      className={"status-pill status-" + (item.status || "new")}
-                    >
-                      {label(item.status || "new")}
-                    </span>
-                  </span>
-                  <span>{item.email}</span>
-                  <span className="inquiry-snippet">{item.message}</span>
-                  <small>{fmt(item.createdAt)}</small>
-                </button>
-              ))
-            )}
-          </div>
-          <div className="admin-detail">
-            {selected ? (
-              <>
-                <h2>{selected.name}</h2>
-                <p>
-                  <a href={"mailto:" + selected.email}>{selected.email}</a>
-                </p>
-                <small>Received {fmt(selected.createdAt)}</small>
-                <div className="inquiry-message">{selected.message}</div>
-                <form className="admin-form" onSubmit={save}>
-                  <label>
-                    Status
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                    >
-                      {statuses.map(([v, l]) => (
-                        <option key={v} value={v}>
-                          {l}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Private notes
-                    <textarea
-                      rows="6"
-                      maxLength="4000"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Internal notes, next steps, quote details…"
-                    />
-                  </label>
-                  <button className="btn" disabled={working}>
-                    {working ? "Saving…" : "Save changes"}
-                  </button>
-                  {message && (
-                    <p role="status" className="admin-success">
-                      {message}
-                    </p>
-                  )}
-                </form>
-              </>
-            ) : (
-              <p className="admin-empty">
-                Select an inquiry to read and manage it.
+                  <option value="">All statuses</option>
+                  {statuses.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button className="btn">Search</button>
+            </form>
+            {error && (
+              <p role="alert" className="admin-error">
+                {error}
               </p>
             )}
-          </div>
-        </div>
-        <nav className="admin-pagination">
-          <button
-            className="admin-secondary"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            Previous
-          </button>
-          <span>
-            Page {page} of {pages}
-          </span>
-          <button
-            className="admin-secondary"
-            disabled={page >= pages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </button>
-        </nav>
+            <div className="admin-grid">
+              <div className="admin-list">
+                {!items.length ? (
+                  <p className="admin-empty">No inquiries found.</p>
+                ) : (
+                  items.map((item) => (
+                    <button
+                      key={item._id}
+                      className={
+                        "inquiry-row " +
+                        (selected?._id === item._id ? "active" : "")
+                      }
+                      onClick={() => open(item)}
+                    >
+                      <span className="inquiry-row-top">
+                        <strong>{item.name}</strong>
+                        <span
+                          className={
+                            "status-pill status-" + (item.status || "new")
+                          }
+                        >
+                          {label(item.status || "new")}
+                        </span>
+                      </span>
+                      <span>{item.email}</span>
+                      <span className="inquiry-snippet">{item.message}</span>
+                      <small>{fmt(item.createdAt)}</small>
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="admin-detail">
+                {selected ? (
+                  <>
+                    <h2>{selected.name}</h2>
+                    <p>
+                      <a href={"mailto:" + selected.email}>{selected.email}</a>
+                    </p>
+                    <small>Received {fmt(selected.createdAt)}</small>
+                    <div className="inquiry-message">{selected.message}</div>
+                    <form className="admin-form" onSubmit={save}>
+                      <label>
+                        Status
+                        <select
+                          value={status}
+                          onChange={(e) => setStatus(e.target.value)}
+                        >
+                          {statuses.map(([v, l]) => (
+                            <option key={v} value={v}>
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Private notes
+                        <textarea
+                          rows="6"
+                          maxLength="4000"
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          placeholder="Internal notes, next steps, quote details…"
+                        />
+                      </label>
+                      <button className="btn" disabled={working}>
+                        {working ? "Saving…" : "Save changes"}
+                      </button>
+                      {message && (
+                        <p role="status" className="admin-success">
+                          {message}
+                        </p>
+                      )}
+                    </form>
+                  </>
+                ) : (
+                  <p className="admin-empty">
+                    Select an inquiry to read and manage it.
+                  </p>
+                )}
+              </div>
+            </div>
+            <nav className="admin-pagination">
+              <button
+                className="admin-secondary"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </button>
+              <span>
+                Page {page} of {pages}
+              </span>
+              <button
+                className="admin-secondary"
+                disabled={page >= pages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </button>
+            </nav>
+          </>
+        )}
       </div>
     </main>
   );

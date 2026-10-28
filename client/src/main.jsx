@@ -39,7 +39,7 @@ const services = [
 ];
 function App() {
   const [gallery, setGallery] = useState([]),
-    [index, setIndex] = useState(0),
+    [index, setIndex] = useState(null),
     [form, setForm] = useState({ name: "", email: "", message: "" }),
     [status, setStatus] = useState(""),
     [busy, setBusy] = useState(false);
@@ -104,34 +104,105 @@ function App() {
           </div>
         </div>
       </section>
-      <section className="gallery">
+      <section className="gallery" id="gallery">
         <div className="container">
-          <h2>Recent Projects</h2>
+          <div className="gallery-heading">
+            <div>
+              <span className="gallery-eyebrow">CRAFTED WITH CARE</span>
+              <h2>Recent Projects</h2>
+              <p>
+                Explore custom creations and technical projects from MTM
+                Enterprises.
+              </p>
+            </div>
+            <span className="gallery-count">{gallery.length} projects</span>
+          </div>
           {gallery.length ? (
-            <>
-              <div className="carousel-container">
+            <div className="project-grid">
+              {gallery.map((item, i) => (
                 <button
-                  className="nav prev"
-                  aria-label="Previous image"
-                  onClick={() =>
-                    setIndex((index - 1 + gallery.length) % gallery.length)
-                  }
+                  type="button"
+                  key={item.id || item.url}
+                  className="project-card"
+                  onClick={() => setIndex(i)}
+                  aria-label={"View " + (item.title || item.caption)}
                 >
-                  ❮
+                  <span className="project-image">
+                    <img
+                      src={item.url}
+                      alt={item.title || item.caption}
+                      loading="lazy"
+                    />
+                  </span>
+                  <span className="project-info">
+                    <span className="project-category">
+                      {item.category || "3D Printing"}
+                    </span>
+                    <strong>{item.title || item.caption}</strong>
+                    {item.description && (
+                      <span className="project-description">
+                        {item.description}
+                      </span>
+                    )}
+                  </span>
                 </button>
-                <img src={gallery[index].url} alt={gallery[index].caption} />
-                <button
-                  className="nav next"
-                  aria-label="Next image"
-                  onClick={() => setIndex((index + 1) % gallery.length)}
-                >
-                  ❯
-                </button>
-              </div>
-              <p className="caption">{gallery[index].caption}</p>
-            </>
+              ))}
+            </div>
           ) : (
-            <p className="caption">No gallery images available.</p>
+            <p className="gallery-empty">Projects coming soon.</p>
+          )}
+          {index !== null && gallery[index] && (
+            <div
+              className="lightbox"
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setIndex(null);
+              }}
+            >
+              <div
+                className="lightbox-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Project photo"
+              >
+                <button
+                  className="lightbox-close"
+                  onClick={() => setIndex(null)}
+                  aria-label="Close photo"
+                >
+                  ×
+                </button>
+                <img
+                  src={gallery[index].url}
+                  alt={gallery[index].title || gallery[index].caption}
+                />
+                <div className="lightbox-footer">
+                  <button
+                    onClick={() =>
+                      setIndex((index - 1 + gallery.length) % gallery.length)
+                    }
+                    aria-label="Previous photo"
+                  >
+                    ←
+                  </button>
+                  <div>
+                    <strong>
+                      {gallery[index].title || gallery[index].caption}
+                    </strong>
+                    <p>{gallery[index].description || ""}</p>
+                    <small>
+                      {index + 1} / {gallery.length}
+                    </small>
+                  </div>
+                  <button
+                    onClick={() => setIndex((index + 1) % gallery.length)}
+                    aria-label="Next photo"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </section>

@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import helmet from "helmet";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
+import multer from "multer";
 import { rateLimit } from "express-rate-limit";
 
 const app = express();
@@ -38,6 +39,70 @@ const inquirySchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 const Inquiry = mongoose.model("Inquiry", inquirySchema);
+const GalleryItem = mongoose.model(
+  "GalleryItem",
+  new mongoose.Schema({
+    title: { type: String, required: true, maxlength: 100 },
+    description: { type: String, default: "", maxlength: 600 },
+    category: {
+      type: String,
+      enum: ["3D Printing", "Software", "Web Design", "Other"],
+      default: "3D Printing",
+    },
+    visible: { type: Boolean, default: true, index: true },
+    sortOrder: { type: Number, default: 0, index: true },
+    gridFileId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    mimeType: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now },
+  }),
+);
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 5 },
+  fileFilter: (_req, file, cb) =>
+    cb(
+      null,
+      ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(
+        file.mimetype,
+      ),
+    ),
+});
+function imageType(buffer) {
+  if (buffer.length < 12) return null;
+  if (buffer.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])))
+    return "image/jpeg";
+  if (
+    buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+  )
+    return "image/png";
+  if (
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  )
+    return "image/webp";
+  if (["GIF87a", "GIF89a"].includes(buffer.toString("ascii", 0, 6)))
+    return "image/gif";
+  return null;
+}
+function galleryDTO(item) {
+  return {
+    id: String(item._id),
+    url: "/api/gallery/images/" + item._id,
+    title: item.title,
+    caption: item.title,
+    description: item.description,
+    category: item.category,
+    visible: item.visible,
+    sortOrder: item.sortOrder,
+    createdAt: item.createdAt,
+  };
+}
+function gridBucket() {
+  return new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+    bucketName: "galleryImages",
+  });
+}
+
 const Admin = mongoose.model(
   "Admin",
   new mongoose.Schema({
@@ -164,14 +229,46 @@ app.get("/api/ready", (_req, res) =>
     ? res.json({ status: "ready" })
     : res.status(503).json({ status: "not ready" }),
 );
-app.get("/api/gallery", (_req, res) =>
-  res.json(
-    galleryFiles.map((name) => ({
-      url: "/gallery/" + encodeURIComponent(name),
-      caption: name.replace(/\.[^.]+$/, "").replaceAll("_", " "),
-    })),
-  ),
-);
+app.get("/api/gallery", async (_req, res, next) => {
+  try {
+    const items = await GalleryItem.find({ visible: true })
+      .sort({ sortOrder: 1, createdAt: -1 })
+      .lean();
+    res.json([
+      ...items.map(galleryDTO),
+      ...galleryFiles.map((name) => ({
+        url: "/gallery/" + encodeURIComponent(name),
+        caption: name.replace(/\.[^.]+$/, "").replaceAll("_", " "),
+        title: name.replace(/\.[^.]+$/, "").replaceAll("_", " "),
+        category: "Archive",
+        legacy: true,
+      })),
+    ]);
+  } catch (e) {
+    next(e);
+  }
+});
+app.get("/api/gallery/images/:id", async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.sendStatus(404);
+    const item = await GalleryItem.findById(req.params.id).lean();
+    if (!item || !item.visible) return res.sendStatus(404);
+    res.set({
+      "Content-Type": item.mimeType,
+      "Cache-Control": "public, max-age=300",
+      "X-Content-Type-Options": "nosniff",
+    });
+    const stream = gridBucket().openDownloadStream(item.gridFileId);
+    stream.on("error", (e) => {
+      if (!res.headersSent) res.status(404).end();
+      else res.destroy(e);
+    });
+    stream.pipe(res);
+  } catch (e) {
+    next(e);
+  }
+});
+
 app.post("/api/contact", inquiryLimit, async (req, res) => {
   const { name, email, message } = req.body || {};
   if (
@@ -305,6 +402,140 @@ app.get("/api/admin/inquiries", requireAdmin, async (req, res, next) => {
     next(e);
   }
 });
+app.get("/api/admin/gallery", requireAdmin, async (_req, res, next) => {
+  try {
+    const items = await GalleryItem.find()
+      .sort({ sortOrder: 1, createdAt: -1 })
+      .lean();
+    res.json({ items: items.map(galleryDTO) });
+  } catch (e) {
+    next(e);
+  }
+});
+app.post(
+  "/api/admin/gallery",
+  sameOrigin,
+  requireAdmin,
+  upload.single("image"),
+  async (req, res, next) => {
+    try {
+      if (!req.file)
+        return res
+          .status(400)
+          .json({ error: "Choose a JPG, PNG, WebP or GIF image (max 5 MB)." });
+      const mime = imageType(req.file.buffer);
+      if (!mime || mime !== req.file.mimetype)
+        return res.status(400).json({ error: "Invalid image file." });
+      const title = String(req.body.title || "").trim(),
+        description = String(req.body.description || "").trim();
+      const category = String(req.body.category || "3D Printing");
+      if (
+        !title ||
+        title.length > 100 ||
+        description.length > 600 ||
+        !["3D Printing", "Software", "Web Design", "Other"].includes(category)
+      )
+        return res.status(400).json({ error: "Invalid gallery details." });
+      const bucket = gridBucket();
+      const stream = bucket.openUploadStream("gallery-upload", {
+        contentType: mime,
+      });
+      await new Promise((resolve, reject) => {
+        stream.on("finish", resolve);
+        stream.on("error", reject);
+        stream.end(req.file.buffer);
+      });
+      let item;
+      try {
+        item = await GalleryItem.create({
+          title,
+          description,
+          category,
+          gridFileId: stream.id,
+          mimeType: mime,
+          visible: true,
+          sortOrder: Date.now(),
+        });
+      } catch (e) {
+        await bucket.delete(stream.id).catch(() => {});
+        throw e;
+      }
+      res.status(201).json({ item: galleryDTO(item) });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+app.patch(
+  "/api/admin/gallery/:id",
+  sameOrigin,
+  requireAdmin,
+  async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id))
+        return res.status(400).json({ error: "Invalid ID." });
+      const patch = {};
+      for (const key of ["title", "description", "category"])
+        if (req.body?.[key] !== undefined) {
+          if (typeof req.body[key] !== "string")
+            return res.status(400).json({ error: "Invalid field." });
+          patch[key] = req.body[key].trim();
+        }
+      if ("title" in patch && (!patch.title || patch.title.length > 100))
+        return res
+          .status(400)
+          .json({ error: "Title must be 1-100 characters." });
+      if ("description" in patch && patch.description.length > 600)
+        return res.status(400).json({ error: "Description too long." });
+      if (
+        "category" in patch &&
+        !["3D Printing", "Software", "Web Design", "Other"].includes(
+          patch.category,
+        )
+      )
+        return res.status(400).json({ error: "Invalid category." });
+      if (req.body?.visible !== undefined) {
+        if (typeof req.body.visible !== "boolean")
+          return res.status(400).json({ error: "Invalid visibility." });
+        patch.visible = req.body.visible;
+      }
+      if (req.body?.sortOrder !== undefined) {
+        if (!Number.isSafeInteger(req.body.sortOrder))
+          return res.status(400).json({ error: "Invalid order." });
+        patch.sortOrder = req.body.sortOrder;
+      }
+      if (!Object.keys(patch).length)
+        return res.status(400).json({ error: "No changes." });
+      const item = await GalleryItem.findByIdAndUpdate(
+        req.params.id,
+        { $set: patch },
+        { new: true, runValidators: true },
+      ).lean();
+      if (!item) return res.sendStatus(404);
+      res.json({ item: galleryDTO(item) });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+app.delete(
+  "/api/admin/gallery/:id",
+  sameOrigin,
+  requireAdmin,
+  async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.sendStatus(404);
+      const item = await GalleryItem.findByIdAndDelete(req.params.id).lean();
+      if (!item) return res.sendStatus(404);
+      await gridBucket()
+        .delete(item.gridFileId)
+        .catch((e) => console.error("Gallery image cleanup:", e.message));
+      res.json({ deleted: true });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -345,6 +576,15 @@ app.patch(
   },
 );
 app.use((err, _req, res, _next) => {
+  if (err instanceof multer.MulterError)
+    return res
+      .status(400)
+      .json({
+        error:
+          err.code === "LIMIT_FILE_SIZE"
+            ? "Image must be 5 MB or smaller."
+            : "Invalid upload.",
+      });
   console.error("API error:", err.message);
   res.status(500).json({ error: "Unexpected server error." });
 });
