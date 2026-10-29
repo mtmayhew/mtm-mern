@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-const materials = ["PLA", "PETG", "ABS", "ASA", "TPU", "Resin", "Not sure"];
+const materials = ["PLA", "PETG", "Not sure"];
 export default function QuoteForm() {
   const [form, setForm] = useState({
     name: "",
