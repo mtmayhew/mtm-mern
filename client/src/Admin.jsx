@@ -1,3 +1,4 @@
+import QuoteAdmin from "./QuoteAdmin.jsx";
 import React, { useEffect, useState } from "react";
 
 async function request(path, options = {}) {
@@ -519,9 +520,17 @@ export default function Admin() {
           >
             Project gallery
           </button>
+          <button
+            className={tab === "quotes" ? "active" : ""}
+            onClick={() => setTab("quotes")}
+          >
+            3D Print Quotes
+          </button>
         </div>
         {tab === "gallery" ? (
           <GalleryManager />
+        ) : tab === "quotes" ? (
+          <QuoteAdmin />
         ) : (
           <>
             <form

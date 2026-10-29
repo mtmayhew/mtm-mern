@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 import Admin from "./Admin.jsx";
+import QuoteForm from "./QuoteForm.jsx";
 const services = [
   [
     "3D Printing & Design",
@@ -82,6 +83,9 @@ function App() {
             Custom 3D Printing, Software Development, Web Solutions & Digital
             Design
           </p>
+          <a href="#quote" className="btn">
+            Request a 3D Print Quote
+          </a>{" "}
           <a href="#contact" className="btn">
             Get In Touch
           </a>
@@ -206,6 +210,7 @@ function App() {
           )}
         </div>
       </section>
+      <QuoteForm />
       <section className="about">
         <div className="container">
           <h2>About MTM Enterprises</h2>

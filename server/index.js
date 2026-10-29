@@ -6,6 +6,7 @@ import helmet from "helmet";
 import bcrypt from "bcryptjs";
 import nodemailer from "nodemailer";
 import multer from "multer";
+import yauzl from "yauzl";
 import { rateLimit } from "express-rate-limit";
 
 const app = express();
@@ -553,6 +554,352 @@ app.delete(
     }
   },
 );
+
+// Quote requests: uploaded models are private. No public file-download or model-rendering endpoint.
+const quoteStatuses = [
+  "new",
+  "reviewing",
+  "quoted",
+  "approved",
+  "declined",
+  "completed",
+];
+const Quote = mongoose.model(
+  "PrintQuote",
+  new mongoose.Schema({
+    name: { type: String, required: true, maxlength: 100 },
+    email: { type: String, required: true, maxlength: 254 },
+    projectName: { type: String, required: true, maxlength: 120 },
+    description: { type: String, required: true, maxlength: 3000 },
+    material: {
+      type: String,
+      enum: ["PLA", "PETG", "ABS", "ASA", "TPU", "Resin", "Not sure"],
+      required: true,
+    },
+    color: { type: String, required: true, maxlength: 70 },
+    quantity: { type: Number, min: 1, max: 500, required: true },
+    dimensions: { type: String, default: "", maxlength: 200 },
+    status: { type: String, enum: quoteStatuses, default: "new", index: true },
+    adminNotes: { type: String, default: "", maxlength: 4000 },
+    quotedAmount: { type: Number, min: 0, max: 1000000, default: null },
+    currency: { type: String, default: "USD" },
+    fileId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    filename: { type: String, required: true, maxlength: 160 },
+    mimeType: { type: String, required: true },
+    fileSize: { type: Number, required: true },
+    createdAt: { type: Date, default: Date.now, index: true },
+    updatedAt: { type: Date, default: Date.now },
+  }),
+);
+const quoteLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many quote requests. Try again later." },
+});
+const quoteUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024, files: 1, fields: 10, fieldSize: 5000 },
+  fileFilter: (_req, file, cb) => {
+    const ext = file.originalname.toLowerCase().match(/\.(stl|3mf)$/)?.[1];
+    cb(null, Boolean(ext));
+  },
+});
+function quoteBucket() {
+  return new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+    bucketName: "quoteModels",
+  });
+}
+function validateStl(buf) {
+  if (buf.length < 15) return false;
+  // Binary STL: 80-byte header + triangle count + 50 bytes per triangle.
+  if (buf.length >= 84) {
+    const triangles = buf.readUInt32LE(80);
+    if (triangles > 0 && 84 + triangles * 50 === buf.length) return true;
+  }
+  // ASCII STL: conservative signature check, not a geometric validator.
+  const head = buf.subarray(0, Math.min(buf.length, 256)).toString("utf8");
+  return (
+    /^\s*solid(?:\s|$)/i.test(head) &&
+    /facet\s+normal/i.test(
+      buf.toString("utf8", 0, Math.min(buf.length, 4096)),
+    ) &&
+    /endsolid/i.test(buf.toString("utf8", Math.max(0, buf.length - 4096)))
+  );
+}
+function validate3mf(buf) {
+  return new Promise((resolve) => {
+    if (buf.length < 64 || buf.readUInt32LE(0) !== 0x04034b50)
+      return resolve(false);
+    yauzl.fromBuffer(
+      buf,
+      { lazyEntries: true, validateEntrySizes: true },
+      (err, zip) => {
+        if (err || !zip) return resolve(false);
+        let entries = 0,
+          total = 0,
+          hasModel = false,
+          hasContentTypes = false,
+          done = false;
+        const end = (value) => {
+          if (done) return;
+          done = true;
+          zip.close();
+          resolve(value);
+        };
+        zip.on("error", () => end(false));
+        zip.on("entry", (entry) => {
+          entries++;
+          total += entry.uncompressedSize;
+          if (
+            entries > 300 ||
+            total > 100 * 1024 * 1024 ||
+            entry.uncompressedSize > 40 * 1024 * 1024
+          )
+            return end(false);
+          if (entry.fileName === "[Content_Types].xml") hasContentTypes = true;
+          if (/^3D\/[^/]+\.model$/i.test(entry.fileName)) hasModel = true;
+          zip.readEntry();
+        });
+        zip.on("end", () => end(hasModel && hasContentTypes));
+        zip.readEntry();
+      },
+    );
+  });
+}
+function quoteDTO(q) {
+  return {
+    id: String(q._id),
+    name: q.name,
+    email: q.email,
+    projectName: q.projectName,
+    description: q.description,
+    material: q.material,
+    color: q.color,
+    quantity: q.quantity,
+    dimensions: q.dimensions,
+    status: q.status,
+    adminNotes: q.adminNotes,
+    quotedAmount: q.quotedAmount,
+    filename: q.filename,
+    fileSize: q.fileSize,
+    createdAt: q.createdAt,
+    updatedAt: q.updatedAt,
+  };
+}
+async function notifyQuote(q) {
+  const {
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_USER,
+    SMTP_PASS,
+    SMTP_FROM,
+    INQUIRY_NOTIFY_TO,
+  } = process.env;
+  if (!SMTP_HOST || !SMTP_FROM || !INQUIRY_NOTIFY_TO) return;
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: Number(SMTP_PORT || 587),
+    secure: Number(SMTP_PORT || 587) === 465,
+    auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+  });
+  await transporter.sendMail({
+    from: SMTP_FROM,
+    to: INQUIRY_NOTIFY_TO,
+    replyTo: q.email,
+    subject: "New 3D printing quote request",
+    text: `New quote request\nName: ${q.name}\nEmail: ${q.email}\nProject: ${q.projectName}\nMaterial: ${q.material}\nQuantity: ${q.quantity}\nFile: ${q.filename}\n\nReview securely at /admin (Quotes). Do not open untrusted model files outside an isolated viewer.`,
+  });
+}
+app.post(
+  "/api/quotes",
+  quoteLimit,
+  quoteUpload.single("model"),
+  async (req, res, next) => {
+    let fileId = null;
+    try {
+      const f = req.file;
+      if (!f)
+        return res
+          .status(400)
+          .json({ error: "Attach an STL or 3MF model (20 MB maximum)." });
+      const ext = f.originalname.toLowerCase().match(/\.(stl|3mf)$/)?.[1];
+      if (
+        !ext ||
+        !(ext === "stl" ? validateStl(f.buffer) : await validate3mf(f.buffer))
+      )
+        return res
+          .status(400)
+          .json({ error: "The uploaded STL or 3MF file is invalid." });
+      const {
+        name,
+        email,
+        projectName,
+        description,
+        material,
+        color,
+        dimensions,
+      } = req.body;
+      const quantity = Number(req.body.quantity);
+      if (
+        ![name, email, projectName, description, color].every(
+          (v) => typeof v === "string" && v.trim(),
+        ) ||
+        name.length > 100 ||
+        email.length > 254 ||
+        projectName.length > 120 ||
+        description.length > 3000 ||
+        color.length > 70 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+        !["PLA", "PETG", "ABS", "ASA", "TPU", "Resin", "Not sure"].includes(
+          material,
+        ) ||
+        !Number.isInteger(quantity) ||
+        quantity < 1 ||
+        quantity > 500 ||
+        typeof dimensions !== "string" ||
+        dimensions.length > 200
+      )
+        return res
+          .status(400)
+          .json({ error: "Please check your quote details." });
+      const filename = f.originalname
+        .replace(/[\\/\x00-\x1f\x7f]/g, "_")
+        .slice(0, 160);
+      const mime = ext === "3mf" ? "model/3mf" : "model/stl";
+      const stream = quoteBucket().openUploadStream("private-model", {
+        contentType: mime,
+        metadata: { originalName: filename },
+      });
+      fileId = stream.id;
+      await new Promise((resolve, reject) => {
+        stream.on("finish", resolve);
+        stream.on("error", reject);
+        stream.end(f.buffer);
+      });
+      const item = await Quote.create({
+        name: name.trim(),
+        email: email.trim(),
+        projectName: projectName.trim(),
+        description: description.trim(),
+        material,
+        color: color.trim(),
+        dimensions: dimensions.trim(),
+        quantity,
+        fileId,
+        filename,
+        mimeType: mime,
+        fileSize: f.size,
+      });
+      notifyQuote(item).catch((e) =>
+        console.error("Quote email failed:", e.message),
+      );
+      res.status(201).json({ status: "received", reference: String(item._id) });
+    } catch (e) {
+      if (fileId)
+        await quoteBucket()
+          .delete(fileId)
+          .catch(() => {});
+      next(e);
+    }
+  },
+);
+app.get("/api/admin/quotes", requireAdmin, async (req, res, next) => {
+  try {
+    const page = Math.max(
+      1,
+      Math.min(100000, parseInt(req.query.page, 10) || 1),
+    );
+    const status = String(req.query.status || "");
+    if (status && !quoteStatuses.includes(status))
+      return res.status(400).json({ error: "Invalid status." });
+    const filter = status ? { status } : {};
+    const [items, total] = await Promise.all([
+      Quote.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * 20)
+        .limit(20)
+        .lean(),
+      Quote.countDocuments(filter),
+    ]);
+    res.json({
+      items: items.map(quoteDTO),
+      total,
+      page,
+      pages: Math.max(1, Math.ceil(total / 20)),
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+app.patch(
+  "/api/admin/quotes/:id",
+  sameOrigin,
+  requireAdmin,
+  async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.sendStatus(404);
+      const { status, adminNotes, quotedAmount } = req.body || {};
+      const change = { updatedAt: new Date() };
+      if (status !== undefined) {
+        if (!quoteStatuses.includes(status))
+          return res.status(400).json({ error: "Invalid status." });
+        change.status = status;
+      }
+      if (adminNotes !== undefined) {
+        if (typeof adminNotes !== "string" || adminNotes.length > 4000)
+          return res.status(400).json({ error: "Notes too long." });
+        change.adminNotes = adminNotes;
+      }
+      if (quotedAmount !== undefined) {
+        if (
+          quotedAmount !== null &&
+          (typeof quotedAmount !== "number" ||
+            !Number.isFinite(quotedAmount) ||
+            quotedAmount < 0 ||
+            quotedAmount > 1000000)
+        )
+          return res.status(400).json({ error: "Invalid quote amount." });
+        change.quotedAmount = quotedAmount;
+      }
+      if (Object.keys(change).length === 1)
+        return res.status(400).json({ error: "No changes supplied." });
+      const item = await Quote.findByIdAndUpdate(
+        req.params.id,
+        { $set: change },
+        { new: true, runValidators: true },
+      ).lean();
+      if (!item) return res.sendStatus(404);
+      res.json({ item: quoteDTO(item) });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
+app.get("/api/admin/quotes/:id/file", requireAdmin, async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) return res.sendStatus(404);
+    const q = await Quote.findById(req.params.id).lean();
+    if (!q) return res.sendStatus(404);
+    res.set({
+      "Content-Type": "application/octet-stream",
+      "Content-Disposition": `attachment; filename="${q.filename.replace(/["\\]/g, "_")}"`,
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-store",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+    });
+    const stream = quoteBucket().openDownloadStream(q.fileId);
+    stream.on("error", (e) => {
+      if (!res.headersSent) res.sendStatus(404);
+      else res.destroy(e);
+    });
+    stream.pipe(res);
+  } catch (e) {
+    next(e);
+  }
+});
+
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -599,7 +946,7 @@ app.use((err, _req, res, _next) => {
       .json({
         error:
           err.code === "LIMIT_FILE_SIZE"
-            ? "Image must be 5 MB or smaller."
+            ? "File exceeds upload limit."
             : "Invalid upload.",
       });
   console.error("API error:", err.message);

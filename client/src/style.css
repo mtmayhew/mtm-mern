@@ -650,3 +650,82 @@ a {
     padding: 12px;
   }
 }
+
+/* 3D printing quote intake */
+.quote-section {
+  padding: 5rem 0;
+  background: linear-gradient(135deg, #101b30, #1a3050);
+  color: #f3f7ff;
+}
+.quote-heading {
+  max-width: 730px;
+  margin: 0 auto 2rem;
+  text-align: center;
+}
+.quote-heading p {
+  color: #cbd8ed;
+}
+.quote-form {
+  max-width: 850px;
+  margin: auto;
+  padding: 2rem;
+  background: #fff;
+  color: #1b2b41;
+  border-radius: 20px;
+  box-shadow: 0 18px 50px #0003;
+}
+.quote-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem;
+}
+.quote-full {
+  grid-column: 1/-1;
+}
+.quote-form label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  gap: 0.45rem;
+}
+.quote-form input,
+.quote-form textarea,
+.quote-form select,
+.quote-admin input,
+.quote-admin select,
+.quote-admin textarea {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #b9c8dd;
+  border-radius: 9px;
+  font: inherit;
+  background: #fff;
+  color: #1b2b41;
+}
+.quote-form .btn {
+  margin-top: 1.4rem;
+}
+.quote-file {
+  padding: 1rem;
+  border: 2px dashed #b9c8dd;
+  border-radius: 12px;
+  background: #f5f8fd;
+}
+.quote-help {
+  font-size: 0.9rem;
+  color: #586981;
+}
+.quote-admin {
+  margin-top: 1.5rem;
+}
+.quote-admin .admin-grid {
+  margin-top: 1.2rem;
+}
+@media (max-width: 640px) {
+  .quote-fields {
+    grid-template-columns: 1fr;
+  }
+  .quote-form {
+    padding: 1.1rem;
+  }
+}
