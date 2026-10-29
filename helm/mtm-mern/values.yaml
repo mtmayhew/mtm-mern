@@ -1,10 +1,10 @@
 image:
   repository: ghcr.io/mtmayhew/mtm-web
-  tag: "6a0a3f5b8bacb455bceca061ff56279f6e1c0486"
+  tag: "baf682b0f5cd59fd3e30fe8567f6f8e76d82fcd5"
   pullPolicy: Always
 apiImage:
   repository: ghcr.io/mtmayhew/mtm-api
-  tag: "6a0a3f5b8bacb455bceca061ff56279f6e1c0486"
+  tag: "baf682b0f5cd59fd3e30fe8567f6f8e76d82fcd5"
   pullPolicy: Always
 imagePullSecrets: 
   - name: ghcr-secret
