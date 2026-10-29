@@ -1684,3 +1684,71 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Logo assets and responsive brand treatment — 2026 refresh */
+.site-nav {
+  min-height: 100px;
+  height: auto;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.site-nav .brand {
+  flex: 0 0 auto;
+  display: flex;
+  width: 235px;
+  max-width: 38vw;
+  line-height: 1;
+}
+.site-nav .brand img {
+  width: 100%;
+  height: auto;
+  max-height: 96px;
+  object-fit: contain;
+  display: block;
+}
+.footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+.footer-brand img {
+  height: 43px;
+  width: 43px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+@media (max-width: 900px) {
+  .site-nav .brand {
+    width: 190px;
+  }
+  .site-nav nav {
+    gap: 13px;
+  }
+}
+@media (max-width: 650px) {
+  .site-nav {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 12px;
+  }
+  .site-nav .brand {
+    width: 155px;
+    max-width: 52vw;
+  }
+  .site-nav nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .site-nav .nav-cta {
+    padding: 9px 11px;
+    font-size: 0.79rem;
+  }
+  .footer-brand img {
+    height: 34px;
+    width: 34px;
+  }
+}

@@ -102,14 +102,10 @@ function App() {
       <header className="site-header">
         <div className="container site-nav">
           <a className="brand" href="#home" aria-label="MTM Enterprises home">
-            <img src="/mtm-logo.svg" alt="MTM Enterprises logo" />
-            <span>
-              <strong>MTM</strong>
-              <small>ENTERPRISES</small>
-              <span className="brand-tagline">
-                DESIGN · DEVELOP · CREATE · LEARN
-              </span>
-            </span>
+            <img
+              src="/mtm-logo-wide.webp"
+              alt="MTM Enterprises — Design. Develop. Create. Learn."
+            />
           </a>
           <nav aria-label="Main navigation">
             <a href="#home">Home</a>
@@ -380,8 +376,9 @@ function App() {
         </section>
         <footer>
           <div className="container footer-inner">
-            <span>
-              © 2026 MTM Enterprises · Design. Develop. Create. Learn.
+            <span className="footer-brand">
+              <img src="/mtm-mark.webp" alt="" aria-hidden="true" /> © 2026 MTM
+              Enterprises · Design. Develop. Create. Learn.
             </span>
             <a href="#home">Back to top ↑</a>
           </div>
