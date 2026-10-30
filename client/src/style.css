@@ -1752,3 +1752,210 @@ body {
     width: 34px;
   }
 }
+
+/* Founder preview and dedicated About route */
+.founder-preview {
+  display: grid;
+  grid-template-columns: minmax(200px, 320px) 1fr;
+  align-items: center;
+  gap: clamp(28px, 6vw, 92px);
+}
+.founder-preview-photo {
+  aspect-ratio: 4/5;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid #24669a;
+  box-shadow: 0 15px 55px #0007;
+}
+.founder-preview-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+}
+.founder-preview-copy {
+  max-width: 700px;
+}
+.founder-preview-copy h2 {
+  color: #fff;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.1;
+  margin: 14px 0 22px;
+}
+.founder-preview-copy h2 span,
+.about-page h1 span,
+.about-cta h2 span {
+  color: #1ca2fa;
+}
+.founder-preview-copy p {
+  color: #c7d8e8;
+  font-size: 1.06rem;
+  line-height: 1.85;
+}
+.founder-preview-copy .btn {
+  margin-top: 10px;
+}
+.about-page {
+  background: #061522;
+  color: #f4f8ff;
+}
+.about-page h1,
+.about-page h2,
+.about-page h3 {
+  color: #fff;
+}
+.about-page-hero {
+  padding: 80px 20px 90px;
+  background:
+    radial-gradient(ellipse at 75% 18%, #12395d 0, transparent 55%), #071522;
+}
+.about-hero-grid {
+  display: grid;
+  grid-template-columns: 1.25fr minmax(260px, 0.75fr);
+  gap: clamp(30px, 6vw, 96px);
+  align-items: center;
+}
+.about-hero-copy h1 {
+  font-size: clamp(2.5rem, 5vw, 4.75rem);
+  line-height: 1.06;
+  letter-spacing: -0.045em;
+  margin: 14px 0 18px;
+}
+.about-subtitle {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #6dc5ff !important;
+}
+.about-hero-copy p {
+  margin: 0 0 20px;
+  max-width: 690px;
+  color: #d0dfeb;
+  line-height: 1.85;
+}
+.about-portrait-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid #3275a9;
+  background: #0e233d;
+  box-shadow: 0 24px 90px #0008;
+}
+.about-portrait-frame > img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4/5;
+  object-fit: cover;
+  object-position: center 14%;
+}
+.portrait-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 36px 24px 20px;
+  background: linear-gradient(transparent, #061522e8);
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+.portrait-caption small {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: #a6d8ff;
+}
+.about-story {
+  padding: 90px 20px;
+  background: #091c2c;
+}
+.about-story-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.7fr) 1.3fr;
+  gap: clamp(30px, 7vw, 100px);
+}
+.about-story-intro h2 {
+  font-size: clamp(2rem, 3.3vw, 3.25rem);
+  line-height: 1.18;
+  margin: 16px 0;
+}
+.about-story-intro p,
+.about-story-sections p {
+  color: #bfcede;
+  line-height: 1.9;
+}
+.about-story-sections {
+  display: grid;
+  gap: 40px;
+}
+.about-story-sections article {
+  padding-bottom: 35px;
+  border-bottom: 1px solid #26445c;
+}
+.about-story-sections article:last-child {
+  border: 0;
+}
+.about-chapter,
+.section-kicker {
+  font-size: 0.76rem;
+  letter-spacing: 0.19em;
+  color: #51b8ff;
+  font-weight: 700;
+}
+.about-story-sections h3 {
+  font-size: 1.65rem;
+  margin: 10px 0 18px;
+}
+.about-story-sections p {
+  margin: 0 0 13px;
+}
+.about-cta {
+  text-align: center;
+  padding: 84px 20px 80px;
+  background: radial-gradient(ellipse at center, #10395b, #061421 72%);
+}
+.about-cta h2 {
+  font-size: clamp(2.2rem, 4vw, 3.6rem);
+  margin: 14px 0 20px;
+}
+.about-cta p {
+  max-width: 720px;
+  margin: 0 auto 26px;
+  color: #c4d6e4;
+  line-height: 1.8;
+}
+.about-cta .about-motto {
+  margin: 32px auto 0;
+  font-size: 0.9rem;
+  letter-spacing: 0.14em;
+  color: #6cc4f9;
+}
+@media (max-width: 800px) {
+  .about-hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .about-portrait-frame {
+    width: min(100%, 420px);
+    margin: auto;
+  }
+  .about-story-layout {
+    grid-template-columns: 1fr;
+  }
+  .founder-preview {
+    grid-template-columns: 210px 1fr;
+    gap: 26px;
+  }
+}
+@media (max-width: 560px) {
+  .founder-preview {
+    grid-template-columns: 1fr;
+  }
+  .founder-preview-photo {
+    width: min(100%, 260px);
+    aspect-ratio: 1;
+  }
+  .about-page-hero {
+    padding-top: 44px;
+  }
+  .about-story {
+    padding-top: 60px;
+  }
+}

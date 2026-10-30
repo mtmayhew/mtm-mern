@@ -111,7 +111,7 @@ function App() {
             <a href="#home">Home</a>
             <a href="#services">Services</a>
             <a href="#gallery">Portfolio</a>
-            <a href="#about">About</a>
+            <a href="/about">About</a>
             <a href="#contact">Contact</a>
           </nav>
           <a href="#contact" className="btn nav-cta">
@@ -309,20 +309,34 @@ function App() {
           </div>
         </section>
         <QuoteForm />
-        <section className="about" id="about">
-          <div className="container">
-            <h2>About MTM Enterprises</h2>
-            <p>
-              MTM Enterprises brings together technology, creativity, and
-              education. From one-of-a-kind 3D prints and modern websites to
-              custom software and individualized tutoring, we help people turn
-              ideas into practical results.
-            </p>
-            <p>
-              With extensive software engineering and teaching experience, we
-              offer direct communication, thoughtful design, and solutions
-              tailored to your goals.
-            </p>
+        <section className="about about-preview" id="about">
+          <div className="container founder-preview">
+            <div className="founder-preview-photo">
+              <img
+                src="/michael-headshot.webp"
+                alt="Michael Mayhew, founder of MTM Enterprises"
+                loading="lazy"
+              />
+            </div>
+            <div className="founder-preview-copy">
+              <span className="section-kicker">THE PERSON BEHIND MTM</span>
+              <h2>
+                Hi, I'm <span>Michael.</span>
+              </h2>
+              <p>
+                I'm a software engineer, educator, and creator who loves
+                figuring out how things work—and helping people bring their
+                ideas to life.
+              </p>
+              <p>
+                From writing software and teaching programming to designing
+                custom 3D prints, MTM Enterprises is where my passions come
+                together.
+              </p>
+              <a href="/about" className="btn">
+                Get to know me <span aria-hidden="true">→</span>
+              </a>
+            </div>
           </div>
         </section>
         <section id="contact" className="contact">
@@ -387,9 +401,175 @@ function App() {
     </>
   );
 }
+function AboutPage() {
+  return (
+    <>
+      <header className="site-header">
+        <div className="container site-nav">
+          <a className="brand" href="/" aria-label="MTM Enterprises home">
+            <img src="/mtm-logo-wide.webp" alt="MTM Enterprises" />
+          </a>
+          <nav aria-label="Main navigation">
+            <a href="/">Home</a>
+            <a href="/#services">Services</a>
+            <a href="/#gallery">Portfolio</a>
+            <a href="/about" aria-current="page">
+              About
+            </a>
+            <a href="/#contact">Contact</a>
+          </nav>
+          <a href="/#contact" className="btn nav-cta">
+            Get in Touch <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </header>
+      <main className="about-page">
+        <section className="about-page-hero">
+          <div className="container about-hero-grid">
+            <div className="about-hero-copy">
+              <span className="section-kicker">MEET THE FOUNDER</span>
+              <h1>
+                Hi, I'm <span>Michael Mayhew.</span>
+              </h1>
+              <p className="about-subtitle">
+                Developer. Creator. Educator. Problem Solver.
+              </p>
+              <p>
+                I'm the person behind MTM Enterprises, and if there's one thing
+                you should know about me, it's that I've always enjoyed figuring
+                out how things work—and finding ways to make them work better.
+              </p>
+              <p>
+                I've spent nearly 15 years building software, solving
+                challenging technical problems, and turning ideas into working
+                solutions. For me, technology has never been just about writing
+                code. It's about creating something useful, solving a problem,
+                or bringing someone's vision to life.
+              </p>
+              <a className="btn" href="/#contact">
+                Let's talk about your idea <span aria-hidden="true">→</span>
+              </a>
+            </div>
+            <div className="about-portrait-frame">
+              <img
+                src="/michael-headshot.webp"
+                alt="Michael Mayhew smiling in a black shirt against a blue technology-studio background"
+              />
+              <span className="portrait-caption">
+                Michael Mayhew <small>Founder, MTM Enterprises</small>
+              </span>
+            </div>
+          </div>
+        </section>
+        <section className="about-story">
+          <div className="container about-story-layout">
+            <div className="about-story-intro">
+              <span className="section-kicker">A LITTLE ABOUT MY JOURNEY</span>
+              <h2>Curiosity led me here.</h2>
+              <p>
+                Technology is always changing. What keeps me interested is the
+                chance to keep learning, solve new problems, and make a real
+                difference for someone.
+              </p>
+            </div>
+            <div className="about-story-sections">
+              <article>
+                <span className="about-chapter">01 / MY JOURNEY</span>
+                <h3>From learning to teaching</h3>
+                <p>
+                  My interest in technology led me into software engineering,
+                  where I've had the opportunity to work with a wide range of
+                  technologies, projects, and people. Along the way, I earned my
+                  Master's degree in Information Assurance and Security from
+                  Norwich University.
+                </p>
+                <p>
+                  I also had the opportunity to teach programming at SUNY
+                  Polytechnic Institute. There's something rewarding about
+                  helping someone understand a concept they've been struggling
+                  with and watching everything finally click. That experience is
+                  a big part of why I offer tutoring today.
+                </p>
+              </article>
+              <article>
+                <span className="about-chapter">02 / BEYOND THE CODE</span>
+                <h3>I love making things real</h3>
+                <p>
+                  As much as I enjoy software development, I also love creating
+                  things I can actually hold. That's where 3D printing comes in.
+                </p>
+                <p>
+                  There's something exciting about taking an idea, creating or
+                  adapting a design, and watching it become a physical object.
+                  Whether it's a personalized gift, a decorative piece, or
+                  something practical, I enjoy the creativity and
+                  problem-solving involved in every project.
+                </p>
+                <p>
+                  Software development and 3D printing have a lot in common:
+                  they both start with an idea and end with something that
+                  didn't exist before.
+                </p>
+              </article>
+              <article>
+                <span className="about-chapter">03 / WHY MTM ENTERPRISES</span>
+                <h3>Keeping the work personal</h3>
+                <p>
+                  I started MTM Enterprises because I wanted a way to bring
+                  together the things I'm passionate about: technology,
+                  creativity, and helping people.
+                </p>
+                <p>
+                  I wanted to create a business where someone could come to me
+                  with an idea—whether it's a website, an application, a custom
+                  3D print, or simply wanting to learn something new—and we
+                  could figure out how to make it happen.
+                </p>
+                <p>
+                  When you work with MTM Enterprises, you're working directly
+                  with someone who cares about understanding your project and
+                  getting the details right.
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+        <section className="about-cta">
+          <div className="container">
+            <span className="section-kicker">LET'S CREATE SOMETHING</span>
+            <h2>
+              Have an idea? <span>I'd love to hear it.</span>
+            </h2>
+            <p>
+              Whether you're starting a business, looking for a custom creation,
+              solving a technical problem, or taking your first steps into
+              programming, no idea is too small to start a conversation.
+            </p>
+            <a className="btn" href="/#contact">
+              Get in Touch <span aria-hidden="true">→</span>
+            </a>
+            <p className="about-motto">Design. Develop. Create. Learn.</p>
+          </div>
+        </section>
+      </main>
+      <footer>
+        <div className="container footer-inner">
+          <span className="footer-brand">
+            <img src="/mtm-mark.webp" alt="" /> © 2026 MTM Enterprises · Design.
+            Develop. Create. Learn.
+          </span>
+          <a href="/">Back to home ↑</a>
+        </div>
+      </footer>
+    </>
+  );
+}
+const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
 createRoot(document.getElementById("root")).render(
-  window.location.pathname.replace(/\/$/, "") === "/admin" ? (
+  currentPath === "/admin" ? (
     <Admin />
+  ) : currentPath === "/about" ? (
+    <AboutPage />
   ) : (
     <App />
   ),
