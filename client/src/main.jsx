@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./style.css";
 import Admin from "./Admin.jsx";
 import QuoteForm from "./QuoteForm.jsx";
+import SEO from "./SEO.jsx";
 const services = [
   {
     title: "3D Printing",
@@ -566,11 +567,14 @@ function AboutPage() {
 }
 const currentPath = window.location.pathname.replace(/\/$/, "") || "/";
 createRoot(document.getElementById("root")).render(
-  currentPath === "/admin" ? (
-    <Admin />
-  ) : currentPath === "/about" ? (
-    <AboutPage />
-  ) : (
-    <App />
-  ),
+  <>
+    <SEO path={currentPath} />
+    {currentPath === "/admin" ? (
+      <Admin />
+    ) : currentPath === "/about" ? (
+      <AboutPage />
+    ) : (
+      <App />
+    )}
+  </>,
 );
