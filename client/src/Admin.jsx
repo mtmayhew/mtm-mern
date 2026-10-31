@@ -23,13 +23,14 @@ const galleryCategories = ["3D Printing", "Software", "Web Design", "Other"];
 const originalGalleryFiles = [
   "20260606_092804.jpg",
   "dragon.jpeg",
-  "IMG_20260606_105357.jpg",
+  "IMG_20260606_105417.jpg",
   "IMG_20260606_105419.jpg",
+  "SaturnVCube.jpg",
   "Scorpio_Charm.webp",
   "Toad_Totem_Backflow_Burne.webp",
 ];
 async function resizeOriginal(blob) {
-  if (blob.size <= 5 * 1024 * 1024) return blob;
+  if (blob.size <= 100 * 1024 * 1024) return blob;
   const bitmap = await createImageBitmap(blob);
   try {
     const canvas = document.createElement("canvas");
@@ -43,7 +44,7 @@ async function resizeOriginal(blob) {
       const converted = await new Promise((resolve) =>
         canvas.toBlob(resolve, "image/webp", quality),
       );
-      if (converted && converted.size <= 5 * 1024 * 1024) return converted;
+      if (converted && converted.size <= 100 * 1024 * 1024) return converted;
     }
     throw Error("Image is too large after resizing.");
   } finally {
@@ -140,6 +141,10 @@ function GalleryManager() {
     setNotice("");
     if (!image) {
       setError("Choose an image first.");
+      return;
+    }
+    if (image.size > 100 * 1024 * 1024) {
+      setError("Image must be 100 MB or smaller.");
       return;
     }
     setBusy(true);
@@ -249,7 +254,7 @@ function GalleryManager() {
           />
         </label>
         <label>
-          Photo (JPG, PNG, WebP or GIF, max 5 MB)
+          Photo (JPG, PNG, WebP or GIF, max 100 MB)
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"

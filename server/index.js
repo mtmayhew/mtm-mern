@@ -18,7 +18,6 @@ const production = process.env.NODE_ENV === "production";
 const galleryFiles = [
   "20260606_092804.jpg",
   "dragon.jpeg",
-  "IMG_20260606_105357.jpg",
   "IMG_20260606_105419.jpg",
   "Scorpio_Charm.webp",
   "Toad_Totem_Backflow_Burne.webp",
@@ -58,7 +57,7 @@ const GalleryItem = mongoose.model(
 );
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 6 },
+  limits: { fileSize: 100 * 1024 * 1024, files: 1, fields: 6 },
   fileFilter: (_req, file, cb) =>
     cb(
       null,
@@ -432,7 +431,9 @@ app.post(
       if (!req.file)
         return res
           .status(400)
-          .json({ error: "Choose a JPG, PNG, WebP or GIF image (max 5 MB)." });
+          .json({
+            error: "Choose a JPG, PNG, WebP or GIF image (max 100 MB).",
+          });
       const mime = imageType(req.file.buffer);
       if (!mime || mime !== req.file.mimetype)
         return res.status(400).json({ error: "Invalid image file." });
@@ -573,7 +574,7 @@ const Quote = mongoose.model(
     description: { type: String, required: true, maxlength: 3000 },
     material: {
       type: String,
-      enum: ["PLA", "PETG", "ABS", "ASA", "TPU", "Resin", "Not sure"],
+      enum: ["PLA", "PETG", "ABS", "Not sure"],
       required: true,
     },
     color: { type: String, required: true, maxlength: 70 },
@@ -600,7 +601,12 @@ const quoteLimit = rateLimit({
 });
 const quoteUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024, files: 1, fields: 10, fieldSize: 5000 },
+  limits: {
+    fileSize: 100 * 1024 * 1024,
+    files: 1,
+    fields: 10,
+    fieldSize: 5000,
+  },
   fileFilter: (_req, file, cb) => {
     const ext = file.originalname.toLowerCase().match(/\.(stl|3mf)$/)?.[1];
     cb(null, Boolean(ext));
@@ -723,7 +729,7 @@ app.post(
       if (!f)
         return res
           .status(400)
-          .json({ error: "Attach an STL or 3MF model (20 MB maximum)." });
+          .json({ error: "Attach an STL or 3MF model (100 MB maximum)." });
       const ext = f.originalname.toLowerCase().match(/\.(stl|3mf)$/)?.[1];
       if (
         !ext ||

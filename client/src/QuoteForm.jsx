@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-const materials = ["PLA", "PETG", "Not sure"];
+const materials = ["PLA", "PETG", "ABS", "Not sure"];
 export default function QuoteForm() {
   const [form, setForm] = useState({
     name: "",
@@ -24,8 +24,8 @@ export default function QuoteForm() {
     setNotice("");
     setError("");
     try {
-      if (!model || model.size > 20 * 1024 * 1024)
-        throw Error("Choose an STL or 3MF model no larger than 20 MB.");
+      if (!model || model.size > 100 * 1024 * 1024)
+        throw Error("Choose an STL or 3MF model no larger than 100 MB.");
       const data = new FormData();
       Object.entries(form).forEach(([k, v]) => data.append(k, v));
       data.append("model", model);
@@ -150,7 +150,7 @@ export default function QuoteForm() {
               />
             </label>
             <label className="quote-full quote-file">
-              3D model (STL or 3MF, up to 20 MB)
+              3D model (STL or 3MF, up to 100 MB)
               <input
                 type="file"
                 accept=".stl,.3mf"
