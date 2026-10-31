@@ -137,6 +137,7 @@ function GalleryManager() {
   }
   async function create(e) {
     e.preventDefault();
+    const formElement = e.currentTarget;
     setError("");
     setNotice("");
     if (!image) {
@@ -164,7 +165,7 @@ function GalleryManager() {
       setTitle("");
       setDescription("");
       setImage(null);
-      e.currentTarget.reset();
+      formElement?.reset();
       await load();
       setNotice("Project added to your public gallery.");
     } catch (e) {

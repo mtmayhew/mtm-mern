@@ -20,6 +20,7 @@ export default function QuoteForm() {
   }
   async function submit(e) {
     e.preventDefault();
+    const formElement = e.currentTarget;
     setBusy(true);
     setNotice("");
     setError("");
@@ -44,7 +45,7 @@ export default function QuoteForm() {
         dimensions: "",
       });
       setModel(null);
-      e.currentTarget.reset();
+      formElement?.reset();
     } catch (e) {
       setError(e.message);
     } finally {
