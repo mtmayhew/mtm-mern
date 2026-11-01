@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SpamFields, getSpamFields, resetAltcha } from "./AntiSpam.jsx";
 const materials = ["PLA", "PETG", "ABS", "Not sure"];
 export default function QuoteForm() {
   const [form, setForm] = useState({
