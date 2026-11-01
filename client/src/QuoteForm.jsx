@@ -21,6 +21,11 @@ export default function QuoteForm() {
   async function submit(e) {
     e.preventDefault();
     const formElement = e.currentTarget;
+    const guard = getSpamFields(formElement);
+    if (!guard.altcha) {
+      setError("Complete the security verification before submitting.");
+      return;
+    }
     setBusy(true);
     setNotice("");
     setError("");
@@ -30,6 +35,8 @@ export default function QuoteForm() {
       const data = new FormData();
       Object.entries(form).forEach(([k, v]) => data.append(k, v));
       data.append("model", model);
+      data.append("companyWebsite", guard.companyWebsite);
+      data.append("altcha", guard.altcha);
       const r = await fetch("/api/quotes", { method: "POST", body: data });
       const json = await r.json();
       if (!r.ok) throw Error(json.error || "Unable to submit request.");
@@ -46,6 +53,7 @@ export default function QuoteForm() {
       });
       setModel(null);
       formElement?.reset();
+      resetAltcha(formElement);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -165,6 +173,7 @@ export default function QuoteForm() {
               )}
             </label>
           </div>
+          <SpamFields purpose="quotes" />
           <button className="btn" disabled={busy}>
             {busy ? "Submitting…" : "Request a quote"}
           </button>

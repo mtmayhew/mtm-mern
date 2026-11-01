@@ -4,6 +4,7 @@ import "./style.css";
 import Admin from "./Admin.jsx";
 import QuoteForm from "./QuoteForm.jsx";
 import SEO from "./SEO.jsx";
+import { SpamFields, getSpamFields, resetAltcha } from "./AntiSpam.jsx";
 const services = [
   {
     title: "3D Printing",
@@ -80,18 +81,26 @@ function App() {
   const change = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   async function submit(e) {
     e.preventDefault();
+    const formElement = e.currentTarget;
+    const guard = getSpamFields(formElement);
+    if (!guard.altcha) {
+      setStatus("Complete the security verification before sending.");
+      return;
+    }
     setBusy(true);
     setStatus("");
     try {
       let r = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, ...guard }),
       });
       let j = await r.json();
       if (!r.ok) throw new Error(j.error || "Could not send inquiry");
       setStatus("Thanks! Your inquiry has been received.");
       setForm({ name: "", email: "", message: "" });
+      formElement.reset();
+      resetAltcha(formElement);
     } catch (err) {
       setStatus(err.message);
     } finally {
@@ -382,6 +391,7 @@ function App() {
                 value={form.message}
                 onChange={change("message")}
               />
+              <SpamFields purpose="contact" />
               <button className="btn" disabled={busy}>
                 {busy ? "Sending…" : "Send inquiry"}
               </button>

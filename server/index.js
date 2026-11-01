@@ -8,6 +8,9 @@ import nodemailer from "nodemailer";
 import multer from "multer";
 import yauzl from "yauzl";
 import { rateLimit } from "express-rate-limit";
+import { createChallenge, verifySolution } from "altcha-lib";
+import { randomInt as secureRandomInt } from "node:crypto";
+import { deriveKey } from "altcha-lib/algorithms/pbkdf2";
 
 const app = express();
 app.disable("x-powered-by");
@@ -141,7 +144,7 @@ const loginLimit = rateLimit({
 });
 const inquiryLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 5,
+  limit: 3,
   standardHeaders: "draft-8",
   legacyHeaders: false,
 });
@@ -217,6 +220,127 @@ async function sendNotification(inquiry) {
     replyTo: inquiry.email,
   });
 }
+// ALTCHA is generated and verified locally. Set the secret before starting the API.
+const ALTCHA_SECRET = process.env.ALTCHA_HMAC_SECRET;
+if (!ALTCHA_SECRET || ALTCHA_SECRET.length < 32) {
+  throw new Error(
+    "ALTCHA_HMAC_SECRET must be a random secret of at least 32 characters.",
+  );
+}
+const ALTCHA_KEY_SECRET = ALTCHA_SECRET + ":key";
+const challengeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 50,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+});
+const usedProofSchema = new mongoose.Schema(
+  {
+    hash: { type: String, unique: true, required: true },
+    expiresAt: { type: Date, required: true },
+  },
+  { versionKey: false },
+);
+usedProofSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+const UsedProof = mongoose.model("UsedAltchaProof", usedProofSchema);
+app.get("/api/security/altcha", challengeLimiter, async (req, res, next) => {
+  try {
+    const purpose = String(req.query.purpose || "");
+    if (!["contact", "quotes"].includes(purpose))
+      return res.status(400).json({ error: "Invalid challenge purpose." });
+    const challenge = await createChallenge({
+      algorithm: "PBKDF2/SHA-256",
+      cost: 3000,
+      counter: secureRandomInt(1000, 4001),
+      deriveKey,
+      hmacSignatureSecret: ALTCHA_SECRET,
+      hmacKeySignatureSecret: ALTCHA_KEY_SECRET,
+      data: { purpose },
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+    res.set("Cache-Control", "no-store");
+    res.json(challenge);
+  } catch (err) {
+    next(err);
+  }
+});
+function validDescription(value) {
+  return (
+    typeof value === "string" &&
+    value.trim().length >= 15 &&
+    value.length <= 4000 &&
+    /\p{L}{3,}/u.test(value)
+  );
+}
+function spamCheck(purpose) {
+  return async function (req, res, next) {
+    try {
+      const body = req.body || {};
+      if (body.companyWebsite)
+        return res
+          .status(400)
+          .json({ error: "Unable to accept this request." });
+      const encoded = body.altcha;
+      if (
+        typeof encoded !== "string" ||
+        encoded.length < 20 ||
+        encoded.length > 12000
+      )
+        return res
+          .status(403)
+          .json({ error: "Complete the security verification and try again." });
+      let payload;
+      try {
+        payload = JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+      } catch {
+        return res
+          .status(403)
+          .json({ error: "Invalid security verification." });
+      }
+      if (
+        !payload ||
+        typeof payload !== "object" ||
+        !payload.challenge ||
+        !payload.solution
+      )
+        return res
+          .status(403)
+          .json({ error: "Invalid security verification." });
+      if (payload.challenge?.data?.purpose !== purpose)
+        return res
+          .status(403)
+          .json({ error: "Security verification is for a different form." });
+      const result = await verifySolution({
+        challenge: payload.challenge,
+        solution: payload.solution,
+        deriveKey,
+        hmacSignatureSecret: ALTCHA_SECRET,
+        hmacKeySignatureSecret: ALTCHA_KEY_SECRET,
+      });
+      if (!result.verified)
+        return res.status(403).json({
+          error: "Security verification failed or expired. Please retry.",
+        });
+      // Shared, durable one-use proof store works across API replicas and restarts.
+      const proofHash = sha(JSON.stringify(payload.challenge));
+      try {
+        await UsedProof.create({
+          hash: proofHash,
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        });
+      } catch (err) {
+        if (err.code === 11000)
+          return res
+            .status(403)
+            .json({ error: "Verification already used. Please retry." });
+        throw err;
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
 app.get("/api/health", (_req, res) =>
   res.json({
     status: "ok",
@@ -278,10 +402,15 @@ app.get("/api/gallery/images/:id", async (req, res, next) => {
   }
 });
 
-app.post("/api/contact", inquiryLimit, async (req, res) => {
+app.post(
+  "/api/contact",
+  inquiryLimit,
+  spamCheck("contact"),
+  async (req, res) => {
   const { name, email, message } = req.body || {};
   if (
     ![name, email, message].every((x) => typeof x === "string" && x.trim()) ||
+      !validDescription(message) ||
     name.length > 100 ||
     email.length > 254 ||
     message.length > 4000 ||
@@ -305,7 +434,8 @@ app.post("/api/contact", inquiryLimit, async (req, res) => {
     console.error("Inquiry save failed:", err.message);
     res.status(503).json({ error: "Service temporarily unavailable." });
   }
-});
+  },
+);
 app.post("/api/admin/login", loginLimit, sameOrigin, async (req, res, next) => {
   try {
     const { username, password } = req.body || {};
@@ -429,9 +559,7 @@ app.post(
   async (req, res, next) => {
     try {
       if (!req.file)
-        return res
-          .status(400)
-          .json({
+        return res.status(400).json({
             error: "Choose a JPG, PNG, WebP or GIF image (max 100 MB).",
           });
       const mime = imageType(req.file.buffer);
@@ -594,7 +722,7 @@ const Quote = mongoose.model(
 );
 const quoteLimit = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 5,
+  limit: 3,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Too many quote requests. Try again later." },
@@ -722,6 +850,7 @@ app.post(
   "/api/quotes",
   quoteLimit,
   quoteUpload.single("model"),
+  spamCheck("quotes"),
   async (req, res, next) => {
     let fileId = null;
     try {
@@ -756,6 +885,7 @@ app.post(
         email.length > 254 ||
         projectName.length > 120 ||
         description.length > 3000 ||
+        !validDescription(description) ||
         color.length > 70 ||
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
         !["PLA", "PETG", "ABS", "ASA", "TPU", "Resin", "Not sure"].includes(
@@ -947,9 +1077,7 @@ app.patch(
 );
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError)
-    return res
-      .status(400)
-      .json({
+    return res.status(400).json({
         error:
           err.code === "LIMIT_FILE_SIZE"
             ? "File exceeds upload limit."
