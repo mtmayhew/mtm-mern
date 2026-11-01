@@ -1,23 +1,19 @@
 {
-  "name": "mtm-server",
+  "name": "mtm-client",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
-    "create-admin": "node scripts/create-admin.js"
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "express": "^5.0.0",
-    "mongoose": "^8.0.0",
-    "helmet": "^8.0.0",
-    "express-rate-limit": "^8.0.0",
-    "dotenv": "^16.4.7",
-    "bcryptjs": "^2.4.3",
-    "nodemailer": "^7.0.0",
-    "multer": "^2.0.2",
-    "yauzl": "^3.2.0",
-    "altcha-lib": "^2.0.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "altcha": "^2.0.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
   }
 }
