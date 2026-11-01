@@ -9,9 +9,9 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "altcha": "^3.5.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "altcha": "^2.0.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "vite": "^7.0.0"
