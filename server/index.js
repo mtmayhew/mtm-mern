@@ -306,10 +306,11 @@ function spamCheck(purpose) {
         return res
           .status(403)
           .json({ error: "Invalid security verification." });
-      if (payload.challenge?.data?.purpose !== purpose)
-        return res
-          .status(403)
-          .json({ error: "Security verification is for a different form." });
+      if (payload.challenge?.parameters?.data?.purpose !== purpose) {
+        return res.status(403).json({
+          error: "Security verification is for a different form.",
+        });
+      }
       const result = await verifySolution({
         challenge: payload.challenge,
         solution: payload.solution,
@@ -407,33 +408,33 @@ app.post(
   inquiryLimit,
   spamCheck("contact"),
   async (req, res) => {
-  const { name, email, message } = req.body || {};
-  if (
-    ![name, email, message].every((x) => typeof x === "string" && x.trim()) ||
+    const { name, email, message } = req.body || {};
+    if (
+      ![name, email, message].every((x) => typeof x === "string" && x.trim()) ||
       !validDescription(message) ||
-    name.length > 100 ||
-    email.length > 254 ||
-    message.length > 4000 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  )
-    return res
-      .status(400)
-      .json({ error: "Enter a valid name, email, and message." });
-  try {
-    const inquiry = await Inquiry.create({
-      name: name.trim(),
-      email: email.trim(),
-      message: message.trim(),
-    });
-    // An email outage must not lose an accepted inquiry.
-    sendNotification(inquiry).catch((e) =>
-      console.error("Inquiry email notification failed:", e.message),
-    );
-    res.status(201).json({ status: "received" });
-  } catch (err) {
-    console.error("Inquiry save failed:", err.message);
-    res.status(503).json({ error: "Service temporarily unavailable." });
-  }
+      name.length > 100 ||
+      email.length > 254 ||
+      message.length > 4000 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    )
+      return res
+        .status(400)
+        .json({ error: "Enter a valid name, email, and message." });
+    try {
+      const inquiry = await Inquiry.create({
+        name: name.trim(),
+        email: email.trim(),
+        message: message.trim(),
+      });
+      // An email outage must not lose an accepted inquiry.
+      sendNotification(inquiry).catch((e) =>
+        console.error("Inquiry email notification failed:", e.message),
+      );
+      res.status(201).json({ status: "received" });
+    } catch (err) {
+      console.error("Inquiry save failed:", err.message);
+      res.status(503).json({ error: "Service temporarily unavailable." });
+    }
   },
 );
 app.post("/api/admin/login", loginLimit, sameOrigin, async (req, res, next) => {
@@ -560,8 +561,8 @@ app.post(
     try {
       if (!req.file)
         return res.status(400).json({
-            error: "Choose a JPG, PNG, WebP or GIF image (max 100 MB).",
-          });
+          error: "Choose a JPG, PNG, WebP or GIF image (max 100 MB).",
+        });
       const mime = imageType(req.file.buffer);
       if (!mime || mime !== req.file.mimetype)
         return res.status(400).json({ error: "Invalid image file." });
@@ -1078,11 +1079,11 @@ app.patch(
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError)
     return res.status(400).json({
-        error:
-          err.code === "LIMIT_FILE_SIZE"
-            ? "File exceeds upload limit."
-            : "Invalid upload.",
-      });
+      error:
+        err.code === "LIMIT_FILE_SIZE"
+          ? "File exceeds upload limit."
+          : "Invalid upload.",
+    });
   console.error("API error:", err.message);
   res.status(500).json({ error: "Unexpected server error." });
 });
