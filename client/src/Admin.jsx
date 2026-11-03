@@ -446,6 +446,32 @@ export default function Admin() {
       setWorking(false);
     }
   }
+  async function removeInquiry() {
+    if (!selected || working) return;
+    if (
+      !window.confirm(
+        `Permanently delete the inquiry from ${selected.name}? This cannot be undone.`,
+      )
+    )
+      return;
+    setWorking(true);
+    setError("");
+    setMessage("");
+    try {
+      await request(`/api/admin/inquiries/${selected._id}`, {
+        method: "DELETE",
+      });
+      setItems((list) => list.filter((item) => item._id !== selected._id));
+      setSelected(null);
+      setTotal((n) => Math.max(0, n - 1));
+      if (items.length === 1 && page > 1) setPage(page - 1);
+      setMessage("Inquiry permanently deleted.");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setWorking(false);
+    }
+  }
   function open(item) {
     setSelected(item);
     setStatus(item.status || "new");
@@ -645,6 +671,14 @@ export default function Admin() {
                       </label>
                       <button className="btn" disabled={working}>
                         {working ? "Saving…" : "Save changes"}
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-danger"
+                        disabled={working}
+                        onClick={removeInquiry}
+                      >
+                        Delete inquiry
                       </button>
                       {message && (
                         <p role="status" className="admin-success">

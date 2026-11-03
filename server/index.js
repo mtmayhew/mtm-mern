@@ -21,8 +21,8 @@ const production = process.env.NODE_ENV === "production";
 const galleryFiles = [
   "20260606_092804.jpg",
   "dragon.jpeg",
-  "IMG_20260606_105419.jpg",
-  "Scorpio_Charm.webp",
+    "IMG_20260606_105419.jpg",
+    "Scorpio_Charm.webp",
   "Toad_Totem_Backflow_Burne.webp",
 ];
 const inquirySchema = new mongoose.Schema({
@@ -320,8 +320,8 @@ function spamCheck(purpose) {
       });
       if (!result.verified)
         return res.status(403).json({
-          error: "Security verification failed or expired. Please retry.",
-        });
+            error: "Security verification failed or expired. Please retry.",
+          });
       // Shared, durable one-use proof store works across API replicas and restarts.
       const proofHash = sha(JSON.stringify(payload.challenge));
       try {
@@ -542,6 +542,24 @@ app.get("/api/admin/inquiries", requireAdmin, async (req, res, next) => {
     next(e);
   }
 });
+// Permanent deletion is available only to authenticated admins from this site's origin.
+app.delete(
+  "/api/admin/inquiries/:id",
+  sameOrigin,
+  requireAdmin,
+  async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id))
+        return res.status(400).json({ error: "Invalid inquiry ID." });
+      const deleted = await Inquiry.findByIdAndDelete(req.params.id);
+      if (!deleted)
+        return res.status(404).json({ error: "Inquiry not found." });
+      res.json({ deleted: true, id: String(deleted._id) });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 app.get("/api/admin/gallery", requireAdmin, async (_req, res, next) => {
   try {
     const items = await GalleryItem.find()
@@ -561,8 +579,8 @@ app.post(
     try {
       if (!req.file)
         return res.status(400).json({
-          error: "Choose a JPG, PNG, WebP or GIF image (max 100 MB).",
-        });
+            error: "Choose a JPG, PNG, WebP or GIF image (max 100 MB).",
+          });
       const mime = imageType(req.file.buffer);
       if (!mime || mime !== req.file.mimetype)
         return res.status(400).json({ error: "Invalid image file." });
@@ -1014,6 +1032,30 @@ app.patch(
     }
   },
 );
+app.delete(
+  "/api/admin/quotes/:id",
+  sameOrigin,
+  requireAdmin,
+  async (req, res, next) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id))
+        return res.status(400).json({ error: "Invalid quote ID." });
+      const quote = await Quote.findById(req.params.id);
+      if (!quote) return res.status(404).json({ error: "Quote not found." });
+      // Remove the private GridFS model first, so a failed file deletion never leaves an orphan.
+      try {
+        await quoteBucket().delete(quote.fileId);
+      } catch (e) {
+        if (e.code !== "ENOENT" && e.name !== "MongoGridFSFileNotFoundError")
+          throw e;
+      }
+      await Quote.deleteOne({ _id: quote._id });
+      res.json({ deleted: true, id: String(quote._id) });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 app.get("/api/admin/quotes/:id/file", requireAdmin, async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.sendStatus(404);
@@ -1079,11 +1121,11 @@ app.patch(
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError)
     return res.status(400).json({
-      error:
-        err.code === "LIMIT_FILE_SIZE"
-          ? "File exceeds upload limit."
-          : "Invalid upload.",
-    });
+        error:
+          err.code === "LIMIT_FILE_SIZE"
+            ? "File exceeds upload limit."
+            : "Invalid upload.",
+      });
   console.error("API error:", err.message);
   res.status(500).json({ error: "Unexpected server error." });
 });

@@ -73,6 +73,27 @@ export default function QuoteAdmin() {
       setError(e.message);
     }
   }
+  async function removeQuote() {
+    if (!selected) return;
+    if (
+      !window.confirm(
+        `Permanently delete the quote for "${selected.projectName}" AND its uploaded model file? This cannot be undone.`,
+      )
+    )
+      return;
+    setError("");
+    setMessage("");
+    try {
+      await req("/api/admin/quotes/" + selected.id, { method: "DELETE" });
+      setItems((list) => list.filter((item) => item.id !== selected.id));
+      setSelected(null);
+      setMessage("Quote and uploaded model permanently deleted.");
+      if (items.length === 1 && page > 1) setPage(page - 1);
+      else await load();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
   async function download() {
     try {
       const r = await fetch("/api/admin/quotes/" + selected.id + "/file", {
@@ -116,6 +137,11 @@ export default function QuoteAdmin() {
       {error && (
         <p role="alert" className="admin-error">
           {error}
+        </p>
+      )}
+      {message && (
+        <p role="status" className="admin-success">
+          {message}
         </p>
       )}
       <div className="admin-grid">
@@ -195,6 +221,13 @@ export default function QuoteAdmin() {
                   />
                 </label>
                 <button className="btn">Save quote</button>
+                <button
+                  type="button"
+                  className="admin-danger"
+                  onClick={removeQuote}
+                >
+                  Delete quote and model
+                </button>
               </form>
               {message && (
                 <p role="status" className="admin-success">
