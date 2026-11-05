@@ -1,0 +1,42 @@
+.mtm-request-guidance {
+  margin: 0.45rem 0 1rem;
+  font-size: 0.89rem;
+  line-height: 1.5;
+  color: #bfd0df;
+}
+.mtm-request-guidance p {
+  margin: 0.3rem 0;
+}
+.mtm-request-tip {
+  color: #d6e5f2;
+}
+.mtm-request-example {
+  color: #a7bfd4;
+  font-style: italic;
+}
+.mtm-request-example strong {
+  font-style: normal;
+  color: #f2f6fa;
+}
+.mtm-request-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin-top: 0.4rem;
+}
+.mtm-request-indicators span {
+  color: #96caba;
+}
+.mtm-request-indicators .mtm-request-invalid,
+.mtm-request-warning {
+  color: #ffbf80;
+}
+.mtm-request-indicators .mtm-request-count {
+  margin-left: auto;
+  color: #a7bfd4;
+  font-variant-numeric: tabular-nums;
+}
+.mtm-request-valid {
+  color: #75dbc5;
+}

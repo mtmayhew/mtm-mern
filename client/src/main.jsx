@@ -1,3 +1,4 @@
+import RequestGuidance from "./RequestGuidance.jsx";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
@@ -391,6 +392,7 @@ function App() {
                 value={form.message}
                 onChange={change("message")}
               />
+              <RequestGuidance value={form.message} type="contact" />
               <SpamFields purpose="contact" />
               <button className="btn" disabled={busy}>
                 {busy ? "Sending…" : "Send inquiry"}
@@ -580,11 +582,11 @@ createRoot(document.getElementById("root")).render(
   <>
     <SEO path={currentPath} />
     {currentPath === "/admin" ? (
-      <Admin />
-    ) : currentPath === "/about" ? (
-      <AboutPage />
-    ) : (
-      <App />
+    <Admin />
+  ) : currentPath === "/about" ? (
+    <AboutPage />
+  ) : (
+    <App />
     )}
   </>,
 );

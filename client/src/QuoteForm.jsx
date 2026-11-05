@@ -1,6 +1,7 @@
+import RequestGuidance from "./RequestGuidance.jsx";
 import React, { useState } from "react";
 import { SpamFields, getSpamFields, resetAltcha } from "./AntiSpam.jsx";
-const materials = ["PLA", "PETG", "ABS", "Not sure"];
+const materials = ["PLA", "PETG", "ABS", "ASA", "TPU", "Resin", "Not sure"];
 export default function QuoteForm() {
   const [form, setForm] = useState({
     name: "",
@@ -158,6 +159,7 @@ export default function QuoteForm() {
                 onChange={change}
                 placeholder="Purpose, finish, special requests, deadline…"
               />
+              <RequestGuidance value={form.description} type="quote" />
             </label>
             <label className="quote-full quote-file">
               3D model (STL or 3MF, up to 100 MB)
